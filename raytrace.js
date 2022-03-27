@@ -63,7 +63,7 @@ function readFile(input) {
 		if (lines[2]) {
 			for (let lineIndex = 2; lineIndex < lines.length; lineIndex++) { //we will use this loop to scan in the spheres
 				let line = lines[lineIndex].split(/\s+/);
-				if (line) {
+				if (lines[lineIndex]) {
 					console.log("line ot parse:",lines[lineIndex]);
 					spheres.push(new Sphere(parseInt(line[1]), parseInt(line[2]), parseInt(line[3]),	//x y z
 											parseInt(line[4]),											//radius
