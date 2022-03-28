@@ -22,19 +22,6 @@ class Sphere {
 	}
 }
 
-function getLength(a) {
-	return (Math.sqrt(Math.pow(a.x, 2) + Math.pow(a.y, 2) + Math.pow(a.z, 2)));
-}
-
-function normalize(a) {
-	let len = getLength(a);
-	return [(a.x/len), (a.y/len), (a.z/len)];
-}
-
-function dotProduct(a, b) {
-	return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
-}
-
 function readFile(input) {
 	let file = input.files[0];
 	let reader = new FileReader();
@@ -77,4 +64,17 @@ function readFile(input) {
 		console.log(light, spheres);
 	};
 	return;
+}
+
+function getLength(a) {
+	return (Math.sqrt(Math.pow(a.x, 2) + Math.pow(a.y, 2) + Math.pow(a.z, 2)));
+}
+
+function normalize(a) {
+	let len = getLength(a);
+	return [(a.x/len), (a.y/len), (a.z/len)];
+}
+
+function dotProduct(a, b) {
+	return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
 }
