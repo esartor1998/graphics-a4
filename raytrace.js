@@ -22,6 +22,13 @@ class Sphere {
 	}
 }
 
+class Ray {
+	constructor(x, y, z, dx, dy, dz) {
+		this.pos = {x: x, y: y, z: z};
+		this.dir = {x: dx, y: dy, z: dz};
+	}
+}
+
 function readFile(input) {
 	let file = input.files[0];
 	let reader = new FileReader();
@@ -66,6 +73,10 @@ function readFile(input) {
 	return;
 }
 
+function getDist(a, b) {
+	return getLength({x: b.x - a.x, y: b.y - a.y, z: b.z - a.z});
+}
+
 function getLength(a) {
 	return (Math.sqrt(Math.pow(a.x, 2) + Math.pow(a.y, 2) + Math.pow(a.z, 2)));
 }
@@ -77,4 +88,29 @@ function normalize(a) {
 
 function dotProduct(a, b) {
 	return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
+}
+
+function getIntersection(sphere, ray) {
+	let A = 1.0; //hrm
+	let B = 2 * (ray.dir.x * (ray.pos.x - sphere.pos.x) + ray.dir.y * (ray.pos.y - sphere.pos.y) + ray.dir.z * (ray.pos.z - sphere.pos.z));
+	let C = Math.pow(ray.pos.x - sphere.pos.x, 2) + Math.pow(ray.pos.y - sphere.pos.y, 2) + Math.pow(ray.pos.z - sphere.pos.z, 2) - Math.pow(sphere.radius, 2);
+	//hope these are right as they would be a nightmare to debug! 😃
+	let discriminant = Math.pow(B, 2) - 4*A*C;
+	let i0 = {x: 0, y: 0, z: 0};
+	let i1 = {x: Infinity, y: Infinity, z: Infinity};
+	if (B >= 0) {
+		let t0 = 0;
+		let t1 = 0;
+		t0 = (-B - Math.sqrt(discriminant)) / (2*A);
+		if (B > 0) {
+			t1 = (-B + Math.sqrt(discriminant)) / (2*A);
+			i1 = {x: ray.pos.x + ray.dir.x * t1,
+				  y: ray.pos.y + ray.dir.y * t1,
+				  z: ray.pos.z + ray.dir.z * t1};
+		}
+		i0 = {x: ray.pos.x + ray.dir.x * t0,
+			  y: ray.pos.y + ray.dir.y * t0,
+			  z: ray.pos.z + ray.dir.z * t0};
+	}
+	return (getDist(i0, ray.pos) < getDist(i1, ray.pos)) ? i0 : i1;
 }
