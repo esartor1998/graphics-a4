@@ -83,7 +83,7 @@ function getLength(a) {
 
 function normalize(a) {
 	let len = getLength(a);
-	return [(a.x/len), (a.y/len), (a.z/len)];
+	return {x: a.x/len, y: a.y/len, z: a.z/len};
 }
 
 function dotProduct(a, b) {
@@ -95,15 +95,15 @@ function getIntersection(sphere, ray) {
 	let B = 2 * (ray.dir.x * (ray.pos.x - sphere.pos.x) + ray.dir.y * (ray.pos.y - sphere.pos.y) + ray.dir.z * (ray.pos.z - sphere.pos.z));
 	let C = Math.pow(ray.pos.x - sphere.pos.x, 2) + Math.pow(ray.pos.y - sphere.pos.y, 2) + Math.pow(ray.pos.z - sphere.pos.z, 2) - Math.pow(sphere.radius, 2);
 	//hope these are right as they would be a nightmare to debug! 😃
-	let discriminant = Math.pow(B, 2) - 4*A*C;
+	let discriminant = Math.pow(B, 2) - 4 * A * C;
 	let i0 = {x: 0, y: 0, z: 0};
-	let i1 = {x: Infinity, y: Infinity, z: Infinity};
+	let i1 = {x: 0, y: 0, z: 0};
 	if (B >= 0) {
 		let t0 = 0;
 		let t1 = 0;
-		t0 = (-B - Math.sqrt(discriminant)) / (2*A);
+		t0 = (-B - Math.sqrt(discriminant)) / (2 * A);
 		if (B > 0) {
-			t1 = (-B + Math.sqrt(discriminant)) / (2*A);
+			t1 = (-B + Math.sqrt(discriminant)) / (2 * A);
 			i1 = {x: ray.pos.x + ray.dir.x * t1,
 				  y: ray.pos.y + ray.dir.y * t1,
 				  z: ray.pos.z + ray.dir.z * t1};
@@ -113,4 +113,45 @@ function getIntersection(sphere, ray) {
 			  z: ray.pos.z + ray.dir.z * t0};
 	}
 	return (getDist(i0, ray.pos) < getDist(i1, ray.pos)) ? i0 : i1;
+}
+
+function getClosestIntersect(ray) {
+	let min = {x: 0, y: 0, z: 0};
+	for (let i = 0; i < spheres.length; i++) {
+		let testVal = getIntersection(spheres[i]);
+		if (getDist(testVal, ray.pos) < getDist(min, ray.pos)) {
+			min.assign(testVal);
+		}
+	}
+	console.log("min:",min);
+	return min;
+}
+
+function getNormalVector(sphere, intersection) {
+	return normalize({x: (intersection.x - sphere.pos.x) / sphere.radius,
+					  y: (intersection.y - sphere.pos.y) / sphere.radius,
+					  z: (intersection.z - sphere.pos.z) / sphere.radius});
+}
+
+function getViewingVector(sphere, intersection) {
+	return normalize({x: sphere.pos.x - intersection.x,
+					  y: sphere.pos.y - intersection.y,
+					  z: sphere.pos.z - intersection.z});
+}
+
+function getLightVector(intersection) {
+	return normalize({x: light.pos.x - intersection.x,
+					  y: light.pos.y - intersection.y,
+					  z: light.pos.z - intersection.z});
+} //from the global var light. could be adjusted
+
+function getReflectionVector(N, L) {
+	let NdotL = dotProduct(N, L);
+	return normalize({x: 2 * NdotL * N.x - L.x,
+					  y: 2 * NdotL * N.y - L.y,
+					  z: 2 * NdotL * N.z - L.z});
+}
+
+function getIlumination(N, V, L, R) { //normal, viewing, light, reflection
+	let ray = new Ray(0, 0, 0);
 }
