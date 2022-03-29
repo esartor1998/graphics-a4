@@ -45,35 +45,29 @@ function readFile(input) {
 		const lines = reader.result.split('\n');
 		let sphereCount = 0;
 		if (lines[0]) {
-			console.log(lines[0]);
 			let linfo = lines[0].split(/\s+/);
 			//the following line also garbage-collects the old light, i think
-			console.log("light info:",linfo[1], linfo[2], linfo[3],	//x y z
-			linfo[4], linfo[5], linfo[6],	//ambient
-			linfo[7], linfo[8], linfo[9]);
-			light = new Light(parseInt(linfo[1]), parseInt(linfo[2]), parseInt(linfo[3]),	//x y z
-							  parseInt(linfo[4]), parseInt(linfo[5]), parseInt(linfo[6]),	//ambient
-							  parseInt(linfo[7]), parseInt(linfo[8]), parseInt(linfo[9]));	//specular
+			light = new Light(parseFloat(linfo[1]), parseFloat(linfo[2]), parseFloat(linfo[3]),		//x y z
+							  parseFloat(linfo[4]), parseFloat(linfo[5]), parseFloat(linfo[6]),		//ambient
+							  parseFloat(linfo[7]), parseFloat(linfo[8]), parseFloat(linfo[9]));	//specular
 		} else {console.error("Possible improperly formatted input file");}
 		if (lines[1]) {
-			console.log(lines[1]);
-			sphereCount = parseInt(lines[1].replace('#', '')); //NOTE: wait just realized there will be no # in it LOL
+			sphereCount = parseFloat(lines[1].replace('#', '')); //NOTE: wait just realized there will be no # in it LOL
 		} else {console.error("Improper sphere count read in!");}
 		if (lines[2]) {
 			for (let lineIndex = 2; lineIndex < lines.length; lineIndex++) { //we will use this loop to scan in the spheres
 				let line = lines[lineIndex].split(/\s+/);
 				if (lines[lineIndex]) {
-					console.log("line ot parse:",lines[lineIndex]);
-					spheres.push(new Sphere(parseInt(line[1]), parseInt(line[2]), parseInt(line[3]),	//x y z
-											parseInt(line[4]),											//radius
-											parseInt(line[5]), parseInt(line[6]), parseInt(line[7]),	//ambient rgb
-											parseInt(line[8]), parseInt(line[9]), parseInt(line[10]),	//diffuse rgb
-											parseInt(line[11]), parseInt(line[12]), parseInt(line[13]),	//specular rgb
-											parseInt(line[14])));										//shininess
+					spheres.push(new Sphere(parseFloat(line[1]), parseFloat(line[2]), parseFloat(line[3]),		//x y z
+											parseFloat(line[4]),												//radius
+											parseFloat(line[5]), parseFloat(line[6]), parseFloat(line[7]),		//ambient rgb
+											parseFloat(line[8]), parseFloat(line[9]), parseFloat(line[10]),		//diffuse rgb
+											parseFloat(line[11]), parseFloat(line[12]), parseFloat(line[13]),	//specular rgb
+											parseFloat(line[14])));												//shininess
 				}
 			}
 		}
-		console.log(light, spheres);
+		console.log("light:", light, "spheres:", spheres);
 		draw();
 	};
 	return;
@@ -102,7 +96,7 @@ function getIntersection(sphere, ray) {
 	let C = Math.pow(ray.pos.x - sphere.pos.x, 2) + Math.pow(ray.pos.y - sphere.pos.y, 2) + Math.pow(ray.pos.z - sphere.pos.z, 2) - Math.pow(sphere.radius, 2);
 	//hope these are right as they would be a nightmare to debug! 😃
 	let discriminant = Math.pow(B, 2) - 4 * A * C;
-	let i0 = {x: 0, y: 0, z: 0};
+	let i0 = {x: Infinity, y: Infinity, z: Infinity};
 	let i1 = {x: 0, y: 0, z: 0};
 	if (B >= 0) {
 		let t0 = 0;
@@ -122,16 +116,15 @@ function getIntersection(sphere, ray) {
 }
 
 function getClosestIntersect(ray) {
-	let min = {x: 0, y: 0, z: 0};
+	let min = {x: Infinity, y: Infinity, z: Infinity};
 	let whichSphere = -1; //so we know which sphere to get colour info of
 	for (let i = 0; i < spheres.length; i++) {
-		let testVal = getIntersection(spheres[i]);
+		let testVal = getIntersection(spheres[i], ray);
 		if (getDist(testVal, ray.pos) < getDist(min, ray.pos)) {
-			min.assign(testVal);
+			Object.assign(min, testVal);
 			whichSphere = i;
 		}
 	}
-	console.log("min:",min);
 	return {value: min, id: whichSphere}; 
 }
 
@@ -189,8 +182,8 @@ function draw() {
 	for (let i = 0; i < canvas.height; i++) {
 		for (let j = 0; j < canvas.width; j++) {
 			ray.setDir(normalize({x: vpStartX + (vpSize * j / canvas.height), //.width?
-						y: vpStartY + (vpSize * i / canvas.height),
-						z: -1
+								  y: vpStartY + (vpSize * i / canvas.height),
+								  z: -1
 			}));
 			let intersect = getClosestIntersect(ray); //this shit loops over all spheres twice whoops
 			let normalv = getNormalVector(spheres[intersect.id], intersect.value);//juist realized there may be a fatal flaw
