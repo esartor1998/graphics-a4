@@ -2,6 +2,7 @@
 
 var light;
 var spheres = [];
+const DEPTH = 255;
 
 class Light {
 	constructor(x, y, z, ar, ag, ab, sr, sg, sb) { //ax and sx are for ambient & specular
@@ -130,6 +131,21 @@ function getClosestIntersect(ray) {
 	return {value: {x: min.x, y: min.y, z: min.z}, id: whichSphere}; 
 }
 
+function getReflectionIntersect(ray, fromWhich) {
+	let min = {x: Infinity, y: Infinity, z: Infinity};
+	let whichSphere = -1; //so we know which sphere to get colour info of
+	for (let i = 0; i < spheres.length; i++) {
+		if (i != fromWhich) { //dont test our sphere
+			let testVal = getIntersection(spheres[i], ray);
+			if (getDist(testVal, ray.pos) < getDist(min, ray.pos)) {
+				Object.assign(min, testVal);
+				whichSphere = i;
+			}
+		}
+	}
+	return {value: {x: min.x, y: min.y, z: min.z}, id: whichSphere}; 
+}
+
 function getNormalVector(sphere, intersection) {
 	return normalize({x: (intersection.x - sphere.pos.x) / sphere.radius,
 					  y: (intersection.y - sphere.pos.y) / sphere.radius,
@@ -155,8 +171,17 @@ function getReflectionVector(N, L) {
 					  z: 2 * NdotL * N.z - L.z});
 }
 
-function getIllumination(N, V, L, R, sphere) { //normal, viewing, light, reflection
-	let n = 42;
+function getRecReflectionVector(N, V) {
+	let NdotV = dotProduct(N, V);
+	return normalize({x: 2 * NdotV * N.x - V.x,
+					  y: 2 * NdotV * N.y - V.y,
+					  z: 2 * NdotV * N.z - V.z});
+}
+
+function getIllumination(N, V, L, R, intersection) { //normal, viewing, light, reflection
+	let n = 25;
+	let I = intersection.value;
+	let sphere = spheres[intersection.id];
 	let ambient = {r: light.ambient.r * sphere.ambient.r,
 				   g: light.ambient.g * sphere.ambient.g,
 				   b: light.ambient.b * sphere.ambient.b};
@@ -169,11 +194,20 @@ function getIllumination(N, V, L, R, sphere) { //normal, viewing, light, reflect
 					g: light.specular.g * sphere.specular.g * Math.max(dotProduct(R, V), 0.0) ** n,
 					b: light.specular.b * sphere.specular.b * Math.max(dotProduct(R, V), 0.0) ** n};
 
-	console.log("specular for this pixel:",specular);
+	if (sphere.shininess != 0) { //recursive reflection call
+		let RR = getRecReflectionVector(N, V);
+		console.log(RR);
+		let reflectionRay = new Ray(I.x, I.y, I.z, RR.x, RR.y, RR.z);
+		let reflectionIntersect = getReflectionIntersect(reflectionRay, intersection.id);
+		if (reflectionIntersect.id != -1) {
+			console.log(reflectionIntersect.id,":",sphere,"reflects",reflectionIntersect);
+			
+		}
+	}
 
-	return {r: (ambient.r + specular.r + diffuse.r) * 255,
-			g: (ambient.g + specular.g + diffuse.g) * 255,
-			b: (ambient.b + specular.b + diffuse.b) * 255};
+	return {r: (ambient.r + specular.r + diffuse.r) * DEPTH,
+			g: (ambient.g + specular.g + diffuse.g) * DEPTH,
+			b: (ambient.b + specular.b + diffuse.b) * DEPTH};
 }
 
 function draw() {
@@ -194,15 +228,12 @@ function draw() {
 				//console.log(".");
 				let normalv = getNormalVector(spheres[intersect.id], intersect.value);//juist realized there may be a fatal flaw
 				let lightv = getLightVector(intersect.value); //check intersect.value
-				let pixel = getIllumination(normalv, getViewingVector(ray, intersect.value), lightv, getReflectionVector(normalv, lightv), spheres[intersect.id]);
+				let pixel = getIllumination(normalv, getViewingVector(ray, intersect.value), lightv, getReflectionVector(normalv, lightv), intersect);
 				//console.log(j, i, pixel);
 				ctx.fillStyle = 'rgb(' + pixel.r + ',' + pixel.g + ',' + pixel.b + ')';
-				ctx.fillRect(j, i, 1, 1);
 			}
-			else {
-				ctx.fillStyle = `rgb(0, 0, 0)`;
-				ctx.fillRect(j, i, 1, 1);
-			}
+			else ctx.fillStyle = `rgb(0, 0, 0)`; //this actually just makes like a non-overwriting black pixel
+			ctx.fillRect(j, i, 1, 1);
 		}
 	}
 }
