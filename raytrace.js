@@ -97,8 +97,10 @@ function getIntersection(sphere, ray) {
 	//hope these are right as they would be a nightmare to debug! 😃
 	let discriminant = Math.pow(B, 2) - 4 * A * C;
 	let i0 = {x: Infinity, y: Infinity, z: Infinity};
-	let i1 = {x: 0, y: 0, z: 0};
-	if (B >= 0) {
+	let i1 = {x: Infinity, y: Infinity, z: Infinity};
+	//console.log("rayprop",ray.pos,ray.dir,A, B, C, "ray discriminant", sphere.pos, discriminant);
+	if (discriminant >= 0) {
+		//console.log(A, B, C, "ray discriminant", sphere.pos, discriminant);
 		let t0 = 0;
 		let t1 = 0;
 		t0 = (-B - Math.sqrt(discriminant)) / (2 * A);
@@ -125,7 +127,7 @@ function getClosestIntersect(ray) {
 			whichSphere = i;
 		}
 	}
-	return {value: min, id: whichSphere}; 
+	return {value: {x: min.x, y: min.y, z: min.z}, id: whichSphere}; 
 }
 
 function getNormalVector(sphere, intersection) {
@@ -134,10 +136,10 @@ function getNormalVector(sphere, intersection) {
 					  z: (intersection.z - sphere.pos.z) / sphere.radius});
 }
 
-function getViewingVector(sphere, intersection) {
-	return normalize({x: sphere.pos.x - intersection.x,
-					  y: sphere.pos.y - intersection.y,
-					  z: sphere.pos.z - intersection.z});
+function getViewingVector(ray, intersection) {
+	return normalize({x: ray.pos.x - intersection.x,
+					  y: ray.pos.y - intersection.y,
+					  z: ray.pos.z - intersection.z});
 }
 
 function getLightVector(intersection) {
@@ -166,7 +168,9 @@ function getIllumination(N, V, L, R, sphere) { //normal, viewing, light, reflect
 	let specular = {r: light.specular.r * sphere.specular.r * Math.max(dotProduct(R, V), 0.0) ** n,
 					g: light.specular.g * sphere.specular.g * Math.max(dotProduct(R, V), 0.0) ** n,
 					b: light.specular.b * sphere.specular.b * Math.max(dotProduct(R, V), 0.0) ** n};
-	
+
+	console.log("specular for this pixel:",specular);
+
 	return {r: (ambient.r + specular.r + diffuse.r) * 255,
 			g: (ambient.g + specular.g + diffuse.g) * 255,
 			b: (ambient.b + specular.b + diffuse.b) * 255};
@@ -182,15 +186,23 @@ function draw() {
 	for (let i = 0; i < canvas.height; i++) {
 		for (let j = 0; j < canvas.width; j++) {
 			ray.setDir(normalize({x: vpStartX + (vpSize * j / canvas.height), //.width?
-								  y: vpStartY + (vpSize * i / canvas.height),
+								  y: vpStartY - (vpSize * i / canvas.height),
 								  z: -1
 			}));
 			let intersect = getClosestIntersect(ray); //this shit loops over all spheres twice whoops
-			let normalv = getNormalVector(spheres[intersect.id], intersect.value);//juist realized there may be a fatal flaw
-			let lightv = getLightVector(intersect.value); //check intersect.value
-			let pixel = getIllumination(normalv, getViewingVector(spheres[intersect.id], intersect.value), lightv, getReflectionVector(normalv, lightv), spheres[intersect.id]);
-			ctx.fillStyle = `rgb(pixel.r, pixel.g, pixel.b)`;
-			ctx.fillRect(j, i, 1, 1);
+			if (intersect.id != -1) {
+				//console.log(".");
+				let normalv = getNormalVector(spheres[intersect.id], intersect.value);//juist realized there may be a fatal flaw
+				let lightv = getLightVector(intersect.value); //check intersect.value
+				let pixel = getIllumination(normalv, getViewingVector(ray, intersect.value), lightv, getReflectionVector(normalv, lightv), spheres[intersect.id]);
+				//console.log(j, i, pixel);
+				ctx.fillStyle = 'rgb(' + pixel.r + ',' + pixel.g + ',' + pixel.b + ')';
+				ctx.fillRect(j, i, 1, 1);
+			}
+			else {
+				ctx.fillStyle = `rgb(0, 0, 0)`;
+				ctx.fillRect(j, i, 1, 1);
+			}
 		}
 	}
 }
