@@ -4,7 +4,7 @@ var light;
 var spheres = [];
 var recursionDepth = 0;
 const DEPTH = 255;
-const MAX_RECURSION = 512;
+const MAX_RECURSION = 5100;
 
 class Light {
 	constructor(x, y, z, ar, ag, ab, sr, sg, sb) { //ax and sx are for ambient & specular
@@ -133,11 +133,8 @@ function getClosestIntersect(ray, fromWhich) {
 		if (fromWhich == undefined || fromWhich != i) {
 			let testVal = getIntersection(spheres[i], ray);
 			if (getDist(testVal, ray.pos) < getDist(min, ray.pos)) {
-				let testPoint = {x: 0.3 * ray.dir.x, y: 0.3 * ray.dir.y, z: 0.3 * ray.dir.z};
-				if (getDist(testPoint, testVal) < getDist(min, testPoint)) {
-					Object.assign(min, testVal);
-					whichSphere = i;
-				}
+				Object.assign(min, testVal);
+				whichSphere = i;
 			}
 		}
 	}
@@ -197,15 +194,15 @@ function getIllumination(N, V, L, R, intersection) { //normal, viewing, light, r
 		b: light.ambient.b * sphere.ambient.b};
 
 	let diffuse = {r: light.specular.r * sphere.diffuse.r * Math.max(dotProduct(N, L), 0.0),
-			g: light.specular.g * sphere.diffuse.g * Math.max(dotProduct(N, L), 0.0),
-			b: light.specular.b * sphere.diffuse.b * Math.max(dotProduct(N, L), 0.0)};
+				   g: light.specular.g * sphere.diffuse.g * Math.max(dotProduct(N, L), 0.0),
+				   b: light.specular.b * sphere.diffuse.b * Math.max(dotProduct(N, L), 0.0)};
 
 	let specular = {r: light.specular.r * sphere.specular.r * Math.max(dotProduct(R, V), 0.0) ** n,
-			g: light.specular.g * sphere.specular.g * Math.max(dotProduct(R, V), 0.0) ** n,
-			b: light.specular.b * sphere.specular.b * Math.max(dotProduct(R, V), 0.0) ** n};
+					g: light.specular.g * sphere.specular.g * Math.max(dotProduct(R, V), 0.0) ** n,
+					b: light.specular.b * sphere.specular.b * Math.max(dotProduct(R, V), 0.0) ** n};
 
 	let S = getShadowVector(L, I);
-	let shadowRay = new Ray(I.x, I.y, I.z, S.x, S.y, S.z);
+	let shadowRay = new Ray(light.pos.x, light.pos.y, light.pos.z, S.x, S.y, S.z);
 	if (getDist(getClosestIntersect(shadowRay), I) == 0) {
 		return {
 			r: light.ambient.r * sphere.ambient.r * DEPTH,
@@ -219,8 +216,8 @@ function getIllumination(N, V, L, R, intersection) { //normal, viewing, light, r
 		//console.log(RR);
 		let reflectionRay = new Ray(I.x, I.y, I.z, RR.x, RR.y, RR.z); //no need t normalize RR, that is already done in its creation
 		let reflectionIntersect = getClosestIntersect(reflectionRay, intersection.id);
-		let checkPoint = {x: sphere.radius*RR.x-0.5, y: sphere.radius*RR.y-0.5, z: sphere.radius*RR.z-0.5};
-		if (reflectionIntersect.id != -1) {
+		let checkPoint = {x: I.x + (RR.x * 10), y: I.y + (RR.y * 10), z: I.z + (RR.z * 10)};
+		if (reflectionIntersect.id != -1 && getDist(reflectionIntersect.value, checkPoint) < getDist(intersection.value, checkPoint)) {
 			if (recursionDepth < MAX_RECURSION) {
 				//console.log(sphere, "reflects", reflectionIntersect);
 				//console.log(reflectionIntersect.id,":",sphere,"reflects",reflectionIntersect);
@@ -229,7 +226,7 @@ function getIllumination(N, V, L, R, intersection) { //normal, viewing, light, r
 				let lightv = getLightVector(reflectionIntersect.value); //check intersect.value
 				let reflectedColour = getIllumination(normalv, getViewingVector(reflectionRay, reflectionIntersect.value), lightv, getReflectionVector(normalv, lightv), reflectionIntersect);
 				if (reflectedColour) {
-					console.log(reflectedColour);
+					//console.log(reflectedColour);
 					return {r: sphere.shininess * reflectedColour.r + (1.0 - sphere.shininess)*(ambient.r + specular.r + diffuse.r), 
 							g: sphere.shininess * reflectedColour.g + (1.0 - sphere.shininess)*(ambient.g + specular.g + diffuse.g),
 							b: sphere.shininess * reflectedColour.b + (1.0 - sphere.shininess)*(ambient.b + specular.b + diffuse.b)};
