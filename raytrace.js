@@ -4,7 +4,7 @@ var light;
 var spheres = [];
 var recursionDepth = 0;
 const DEPTH = 255;
-const MAX_RECURSION = 5100;
+const MAX_RECURSION = 3333;
 
 class Light {
 	constructor(x, y, z, ar, ag, ab, sr, sg, sb) { //ax and sx are for ambient & specular
@@ -112,9 +112,9 @@ function getIntersection(sphere, ray) {
 		//console.log(A, B, C, "ray discriminant", sphere.pos, discriminant);
 		let t0 = 0;
 		let t1 = 0;
-		t0 = (-B - Math.sqrt(discriminant)) / (2 * A);
+		t0 = (-B - Math.sqrt(discriminant)) / (2.0 * A);
 		if (B > 0) {
-			t1 = (-B + Math.sqrt(discriminant)) / (2 * A);
+			t1 = (-B + Math.sqrt(discriminant)) / (2.0 * A);
 			i1 = {x: ray.pos.x + ray.dir.x * t1,
 				  y: ray.pos.y + ray.dir.y * t1,
 				  z: ray.pos.z + ray.dir.z * t1};
@@ -127,18 +127,22 @@ function getIntersection(sphere, ray) {
 }
 
 function getClosestIntersect(ray, fromWhich) {
+	let infinitePoint = {x: Infinity, y: Infinity, z: Infinity};
 	let min = {x: Infinity, y: Infinity, z: Infinity};
 	let whichSphere = -1; //so we know which sphere to get colour info of
+	let multipleIntersects = false;
 	for (let i = 0; i < spheres.length; i++) {
-		if (fromWhich == undefined || fromWhich != i) {
-			let testVal = getIntersection(spheres[i], ray);
-			if (getDist(testVal, ray.pos) < getDist(min, ray.pos)) {
+		let minToRay = getDist(min, ray.pos);
+		let testVal = getIntersection(spheres[i], ray);
+		if (getDist(testVal, ray.pos) < minToRay) {
+			if (minToRay != Infinity) multipleIntersects = true;
+			if (fromWhich == undefined || fromWhich != i) {
 				Object.assign(min, testVal);
 				whichSphere = i;
 			}
 		}
 	}
-	return {value: {x: min.x, y: min.y, z: min.z}, id: whichSphere}; 
+	return {value: {x: min.x, y: min.y, z: min.z}, id: whichSphere, multiple: multipleIntersects}; 
 }
 
 function getNormalVector(sphere, intersection) {
@@ -173,14 +177,17 @@ function getRecReflectionVector(N, V) {
 					  z: 2 * NdotV * N.z - V.z});
 }
 
-function getShadowVector(L, I) {
+function getShadowVector(I) {
 	return normalize({x: light.pos.x - I.x,
 					  y: light.pos.y - I.y,
 					  z: light.pos.z - I.z});
 }
 
-function eqCoord(a, b) {
-	if (a.x == b.x && a.y == b.y && a.z == b.z) return true;
+function vequals(a, b) {
+	if (a.x == b.x && a.y == b.y && a.z == b.z) {
+		return true;
+	}
+	console.log("does",a.x,"==",b.x,"&&",a.y,"==",b.y,"&&",a.z,"==",b.z,"no.");
 	return false; 
 }
 
@@ -190,8 +197,8 @@ function getIllumination(N, V, L, R, intersection) { //normal, viewing, light, r
 	let sphere = spheres[intersection.id];
 
 	let ambient = {r: light.ambient.r * sphere.ambient.r,
-		g: light.ambient.g * sphere.ambient.g,
-		b: light.ambient.b * sphere.ambient.b};
+				   g: light.ambient.g * sphere.ambient.g,
+				   b: light.ambient.b * sphere.ambient.b};
 
 	let diffuse = {r: light.specular.r * sphere.diffuse.r * Math.max(dotProduct(N, L), 0.0),
 				   g: light.specular.g * sphere.diffuse.g * Math.max(dotProduct(N, L), 0.0),
@@ -201,38 +208,41 @@ function getIllumination(N, V, L, R, intersection) { //normal, viewing, light, r
 					g: light.specular.g * sphere.specular.g * Math.max(dotProduct(R, V), 0.0) ** n,
 					b: light.specular.b * sphere.specular.b * Math.max(dotProduct(R, V), 0.0) ** n};
 
-	let S = getShadowVector(L, I);
-	let shadowRay = new Ray(light.pos.x, light.pos.y, light.pos.z, S.x, S.y, S.z);
-	if (getDist(getClosestIntersect(shadowRay), I) == 0) {
-		return {
-			r: light.ambient.r * sphere.ambient.r * DEPTH,
-			g: light.ambient.g * sphere.ambient.g * DEPTH,
-			b: light.ambient.b * sphere.ambient.b * DEPTH
-		};
-	}
-
 	if (sphere.shininess != 0) { //recursive reflection call
 		let RR = getRecReflectionVector(N, V);
 		//console.log(RR);
 		let reflectionRay = new Ray(I.x, I.y, I.z, RR.x, RR.y, RR.z); //no need t normalize RR, that is already done in its creation
 		let reflectionIntersect = getClosestIntersect(reflectionRay, intersection.id);
 		let checkPoint = {x: I.x + (RR.x * 10), y: I.y + (RR.y * 10), z: I.z + (RR.z * 10)};
-		if (reflectionIntersect.id != -1 && getDist(reflectionIntersect.value, checkPoint) < getDist(intersection.value, checkPoint)) {
+		if (reflectionIntersect.id != -1 && getDist(reflectionIntersect.value, checkPoint) < getDist(intersection.value, checkPoint)) { // ee ur
 			if (recursionDepth < MAX_RECURSION) {
 				//console.log(sphere, "reflects", reflectionIntersect);
 				//console.log(reflectionIntersect.id,":",sphere,"reflects",reflectionIntersect);
 				recursionDepth += 1;
-				let normalv = getNormalVector(spheres[reflectionIntersect.id], reflectionIntersect.value);//juist realized there may be a fatal flaw
-				let lightv = getLightVector(reflectionIntersect.value); //check intersect.value
-				let reflectedColour = getIllumination(normalv, getViewingVector(reflectionRay, reflectionIntersect.value), lightv, getReflectionVector(normalv, lightv), reflectionIntersect);
+				let normalv = getNormalVector(spheres[reflectionIntersect.id], reflectionIntersect.value);
+				let lightv = getLightVector(reflectionIntersect.value);
+				let reflectedColour = getIllumination(normalv,
+													  getViewingVector(reflectionRay, reflectionIntersect.value),
+													  lightv, getReflectionVector(normalv, lightv),
+													  reflectionIntersect);
 				if (reflectedColour) {
 					//console.log(reflectedColour);
-					return {r: sphere.shininess * reflectedColour.r + (1.0 - sphere.shininess)*(ambient.r + specular.r + diffuse.r), 
-							g: sphere.shininess * reflectedColour.g + (1.0 - sphere.shininess)*(ambient.g + specular.g + diffuse.g),
-							b: sphere.shininess * reflectedColour.b + (1.0 - sphere.shininess)*(ambient.b + specular.b + diffuse.b)};
+					return {r: sphere.shininess * reflectedColour.r + (1.0 - sphere.shininess) * (ambient.r + specular.r + diffuse.r), 
+							g: sphere.shininess * reflectedColour.g + (1.0 - sphere.shininess) * (ambient.g + specular.g + diffuse.g),
+							b: sphere.shininess * reflectedColour.b + (1.0 - sphere.shininess) * (ambient.b + specular.b + diffuse.b)};
 				}
 			} else recursionDepth = 0; //we'll stop this charade right here and now & proceed to normal return
 		}
+	}
+
+	let S = getShadowVector(I);
+	let shadowRay = new Ray(light.pos.x, light.pos.y, light.pos.z, S.x, S.y, S.z);
+	let closestToLight = getClosestIntersect(shadowRay);
+	let shadowIntersect = getClosestIntersect(shadowRay, intersection.id);
+	if (shadowIntersect.id != -1 && shadowIntersect.id == closestToLight.id) { //then the point is in shadow
+		return {r: light.ambient.r * sphere.ambient.r,
+				g: light.ambient.g * sphere.ambient.g,
+				b: light.ambient.b * sphere.ambient.b}; //NOTE: this probably shouldnt work but... LOL
 	}
 
 	return {r: (ambient.r + specular.r + diffuse.r),
@@ -255,11 +265,10 @@ function draw() {
 			}));
 			let intersect = getClosestIntersect(ray); //this shit loops over all spheres twice whoops
 			if (intersect.id != -1) {
-				//console.log(".");
+				//console.log(intersect.multiple);
 				let normalv = getNormalVector(spheres[intersect.id], intersect.value);//juist realized there may be a fatal flaw
 				let lightv = getLightVector(intersect.value); //check intersect.value
 				let pixel = scaleDepth(getIllumination(normalv, getViewingVector(ray, intersect.value), lightv, getReflectionVector(normalv, lightv), intersect));
-				//console.log(j, i, pixel);
 				ctx.fillStyle = 'rgb(' + pixel.r + ',' + pixel.g + ',' + pixel.b + ')';
 			} else ctx.fillStyle = `rgb(0, 0, 0)`; //this actually just makes like a non-overwriting black pixel
 			ctx.fillRect(j, i, 1, 1);
